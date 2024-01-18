@@ -42,56 +42,45 @@ func initialModel() model {
 	}
 }
 
+func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyCtrlC:
+		return m, tea.Quit
+	case tea.KeyEnter:
+		if m.step == 1 {
+			m.nameInput.Blur()
+			m.noteInput.Focus()
+			m.step++
+			return m, nil
+		}
+	case tea.KeyEsc:
+		if m.step == 2 {
+			m.step++
+		}
+	}
+
+	switch m.step {
+	case 1:
+		m.nameInput, _ = m.nameInput.Update(msg)
+	case 2:
+		m.noteInput, _ = m.noteInput.Update(msg)
+	}
+
+	return m, nil
+}
+
 func (m model) Init() tea.Cmd {
 	return textinput.Blink // Add the blinking command for the textarea
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
-	// ERROR
-	case error:
-		m.err = msg
-		return m, nil
-
 	case tea.KeyMsg:
-		switch msg.Type {
-		// QUIT
-		case tea.KeyCtrlC:
-			return m, tea.Quit
-
-		// ESCAPE
-		case tea.KeyEsc:
-			switch m.step {
-			case 2:
-				m.step += 1
-			}
-
-		// ENTER
-		case tea.KeyEnter:
-			switch m.step {
-			// Increment step
-			case 1:
-				m.nameInput.Blur()
-				m.noteInput.Focus()
-				m.step += 1
-				// Create new line
-			case 2:
-				m.noteInput, cmd = m.noteInput.Update(msg)
-			}
-			return m, nil
-		}
-
-		switch m.step {
-		case 1:
-			m.nameInput, cmd = m.nameInput.Update(msg)
-		case 2:
-			m.noteInput, cmd = m.noteInput.Update(msg)
-		}
-
+		return m.handleKey(msg)
+	case error:
+		return m.setError(msg), nil
 	}
-	return m, cmd
+	return m, nil
 }
 
 func (m model) View() string {
@@ -111,4 +100,9 @@ func (m model) viewStep1() string {
 
 func (m model) viewStep2() string {
 	return fmt.Sprintf("Tell me a story.\n\n%s\n\n%s", m.noteInput.View(), "(Esc to save)")
+}
+
+func (m model) setError(err error) model {
+	m.err = err
+	return m
 }
